@@ -53,6 +53,39 @@ In `app/api/chat/route.ts`:
 - `GROQ_MODEL` — set via env var. `llama-3.1-8b-instant` is fast and cheap;
   swap in a larger Groq-hosted model for better quality if needed.
 
+## Embedding on a different website
+
+If your actual website is separate from this app (WordPress, Shopify,
+Webflow, Squarespace, plain HTML, etc.), don't copy components over — deploy
+this app on its own (e.g. `chat.yourdomain.com`), then add one line to your
+site, right before `</body>`:
+
+```html
+<script src="https://chat.yourdomain.com/embed.js" async></script>
+```
+
+That's it. It works because:
+
+- `public/embed.js` is a small loader script. It injects a floating
+  `<iframe>` in the bottom-right corner of your page, pointing at the
+  `/widget` route of wherever the script itself is hosted (it reads its own
+  `src` to figure out the domain — no config needed on the host site).
+- `app/widget/page.tsx` is a bare version of the app with nothing but the
+  chat widget, transparent background, meant only to be loaded in that
+  iframe.
+- The iframe starts tiny (just the button). When the widget opens, it
+  `postMessage`s the parent page, and `embed.js` resizes the iframe to a
+  full chat panel — then shrinks it back when closed. On phones it expands
+  to fill the screen instead.
+- Because the iframe's `src` and your `/api/chat` route live on the same
+  domain, there are no CORS issues to configure — it's all same-origin from
+  the iframe's point of view, regardless of what site it's embedded on.
+
+If instead **this Next.js app is itself your website**, skip the iframe
+entirely — `<ChatWidget />` is already mounted on the home page in
+`app/page.tsx`; move it into `app/layout.tsx` if you want it on every page
+of the site instead of just one.
+
 ## Deploying
 
 This is a standard Next.js app — deploys as-is to Vercel, Netlify, or any

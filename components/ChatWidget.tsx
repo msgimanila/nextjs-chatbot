@@ -7,7 +7,14 @@ interface Message {
   content: string;
 }
 
-export default function ChatWidget() {
+interface ChatWidgetProps {
+  // Pass true when this renders inside the /widget iframe (see embed.js) —
+  // it then fills its container instead of self-positioning with `fixed`,
+  // since the surrounding iframe is what gets positioned on the host page.
+  embedded?: boolean;
+}
+
+export default function ChatWidget({ embedded = false }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: "Hi! Ask me anything about this site." },
@@ -19,6 +26,15 @@ export default function ChatWidget() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
+
+  // When embedded via public/embed.js, this widget runs inside an iframe.
+  // The iframe itself is tiny (just the button) until we tell the parent
+  // page to resize it to fit the full chat panel.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.parent !== window) {
+      window.parent.postMessage({ type: "chat-widget-resize", open }, "*");
+    }
+  }, [open]);
 
   async function sendMessage(e: FormEvent) {
     e.preventDefault();
@@ -50,10 +66,20 @@ export default function ChatWidget() {
     }
   }
 
+  const containerClass = embedded
+    ? "w-full h-full font-sans"
+    : "fixed bottom-5 right-5 z-50 font-sans";
+
   return (
-    <div className="fixed bottom-5 right-5 z-50 font-sans">
+    <div className={containerClass}>
       {open ? (
-        <div className="w-80 sm:w-96 h-[28rem] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+        <div
+          className={
+            embedded
+              ? "w-full h-full bg-white sm:rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+              : "w-80 sm:w-96 h-[28rem] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+          }
+        >
           <div className="flex items-center justify-between px-4 py-3 bg-slate-900 text-white">
             <span className="font-medium text-sm">Support Chat</span>
             <button
